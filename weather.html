@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Forecast by Location</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .weather-container {
+            margin-top: 20px;
+        }
+        .weather-item {
+            margin-bottom: 10px;
+        }
+        .input-container {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Future Weather Forecast</h1>
+    <div class="input-container">
+        <input type="text" id="latitude-input" placeholder="Enter latitude" />
+        <input type="text" id="longitude-input" placeholder="Enter longitude" />
+        <button id="fetch-weather-btn">Fetch Weather</button>
+    </div>
+
+    <div class="weather-container" id="weather-container"></div>
+
+    <script>
+        // OpenCage API key for reverse geocoding
+        const openCageApiKey = 'YOUR_OPENCAGE_API_KEY';
+
+        // Function to fetch the location name from latitude and longitude
+        function fetchLocationName(latitude, longitude) {
+            const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${latitude}+${longitude}&key=${openCageApiKey}`;
+
+            return fetch(geocodeUrl)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`Geocoding error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    if (data.results.length > 0) {
+                        // Extract and return the formatted location name
+                        return data.results[0].formatted;
+                    } else {
+                        throw new Error('No location found for the provided coordinates.');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error fetching location name:', error);
+                    return 'Unknown Location';
+                });
+        }
+
+        // Function to fetch weather data
+        function fetchWeatherData(latitude, longitude) {
+            const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&forecast_days=7&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&timezone=auto`;
+
+            fetch(apiUrl)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    console.log('Weather Data:', data);
+
+                    // Fetch the location name
+                    fetchLocationName(latitude, longitude).then((locationName) => {
+                        // Select the container to display weather information
+                        const weatherContainer = document.getElementById('weather-container');
+                        weatherContainer.innerHTML = ''; // Clear previous data
+
+                        // Display the location name and timezone
+                        const locationDisplay = document.createElement('h2');
+                        locationDisplay.textContent = `Location: ${locationName} | Timezone: ${data.timezone}`;
+                        weatherContainer.appendChild(locationDisplay);
+
+                        // Display hourly weather data
+                        data.hourly.time.forEach((time, index) => {
+                            const weatherItem = document.createElement('div');
+                            weatherItem.classList.add('weather-item');
+
+                            weatherItem.innerHTML = `
+                                <strong>Time:</strong> ${time} (${data.timezone}) <br>
+                                <strong>Temperature:</strong> ${data.hourly.temperature_2m[index]} °C <br>
+                                <strong>Humidity:</strong> ${data.hourly.relative_humidity_2m[index]} % <br>
+                                <strong>Wind Speed:</strong> ${data.hourly.wind_speed_10m[index]} km/h
+                            `;
+
+                            weatherContainer.appendChild(weatherItem);
+                        });
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error fetching weather data:', error);
+                    document.getElementById('weather-container').innerHTML = `<p>Failed to fetch weather data: ${error.message}</p>`;
+                });
+        }
+
+        // Event listener for the Fetch Weather button
+        document.getElementById('fetch-weather-btn').addEventListener('click', () => {
+            const latitude = document.getElementById('latitude-input').value.trim();
+            const longitude = document.getElementById('longitude-input').value.trim();
+
+            if (latitude && longitude) {
+                fetchWeatherData(latitude, longitude);
+            } else {
+                document.getElementById('weather-container').innerHTML = '<p>Please enter valid latitude and longitude values.</p>';
+            }
+        });
+    </script>
+
+</body>
+</html>
